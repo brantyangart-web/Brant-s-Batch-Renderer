@@ -502,13 +502,22 @@ def trigger_next_render():
             print(f"Failed to load deferred item {item['name']}: {e}")
             item['objects'] = []
         
-    # Set visibility for this item ONLY
-    for obj, vis in BatchRenderState.original_visibility.items():
-        try:
-            obj.hide_render = True
-            obj.hide_viewport = True
-        except ReferenceError: pass
-        
+    # Hide all objects and exclude their collections in queue
+    for queue_item in queue:
+        for obj in queue_item['objects']:
+            try:
+                obj.hide_render = True
+                obj.hide_viewport = True
+            except ReferenceError: pass
+            
+        col = queue_item.get('collection')
+        if col:
+            try:
+                lc_path = get_layer_collection_path(bpy.context.view_layer.layer_collection, col, [])
+                if lc_path:
+                    lc_path[-1].exclude = True
+            except ReferenceError: pass
+            
     for col, vis in BatchRenderState.original_col_visibility.items():
         try:
             col.hide_render = True
@@ -682,7 +691,7 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
         for sub_col in parent_col.children:
             objs = list(sub_col.all_objects)
             if objs:
-                items.append({'name': sub_col.name, 'objects': objs})
+                items.append({'name': sub_col.name, 'objects': objs, 'collection': sub_col})
             # Remove sub-collection objects from the loose objects pool
             for o in objs:
                 if o in loose_objects:
