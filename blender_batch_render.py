@@ -525,11 +525,16 @@ def trigger_next_render():
                 region = next((r for r in area.regions if r.type == 'WINDOW'), None) if area else None
                 if area and region:
                     with bpy.context.temp_override(area=area, region=region):
-                        ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=True)
+                        ret = bpy.ops.render.opengl('EXEC_DEFAULT', animation=True, view_context=True)
                 else:
-                    ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=False)
+                    ret = bpy.ops.render.opengl('EXEC_DEFAULT', animation=True, view_context=False)
+                
+                # OpenGL does not fire render_complete handlers, so we must manually advance the queue
+                bpy.app.timers.register(handle_render_finished, first_interval=0.1)
+                return None
             else:
                 ret = bpy.ops.render.render('INVOKE_DEFAULT', animation=True)
+                
             if 'RUNNING_MODAL' not in ret and 'FINISHED' not in ret:
                 BatchRenderState.current_frame = item['frame_start']
                 print(f"Render engine locked {ret}. Retrying in 2 seconds...")
@@ -553,9 +558,13 @@ def trigger_next_render():
             region = next((r for r in area.regions if r.type == 'WINDOW'), None) if area else None
             if area and region:
                 with bpy.context.temp_override(area=area, region=region):
-                    ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=True)
+                    ret = bpy.ops.render.opengl('EXEC_DEFAULT', write_still=True, view_context=True)
             else:
-                ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=False)
+                ret = bpy.ops.render.opengl('EXEC_DEFAULT', write_still=True, view_context=False)
+                
+            # OpenGL does not fire render_complete handlers, so we must manually advance the queue
+            bpy.app.timers.register(handle_render_finished, first_interval=0.1)
+            return None
         else:
             ret = bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
             
