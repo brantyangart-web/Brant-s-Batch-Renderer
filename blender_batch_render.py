@@ -761,11 +761,15 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
                         'hide_viewport': obj.hide_viewport
                     }
                     
-        # Apply strict render settings
-        context.scene.render.film_transparent = True
-        context.scene.render.use_compositing = False
-        context.scene.render.image_settings.file_format = 'PNG'
-        context.scene.render.image_settings.color_mode = 'RGBA'
+        # Apply strict render settings for Dual Output
+        if props.dual_output:
+            context.scene.render.film_transparent = True
+            context.scene.render.use_compositing = False
+            try:
+                context.scene.render.image_settings.file_format = 'PNG'
+                context.scene.render.image_settings.color_mode = 'RGBA'
+            except TypeError:
+                pass
 
         # Build Queue Timing
         is_anim = (props.render_type == 'ANIMATION')
