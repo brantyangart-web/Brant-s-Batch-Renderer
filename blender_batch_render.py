@@ -521,7 +521,13 @@ def trigger_next_render():
         
         try:
             if is_playblast:
-                ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=False)
+                area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
+                region = next((r for r in area.regions if r.type == 'WINDOW'), None) if area else None
+                if area and region:
+                    with bpy.context.temp_override(area=area, region=region):
+                        ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=True)
+                else:
+                    ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=False)
             else:
                 ret = bpy.ops.render.render('INVOKE_DEFAULT', animation=True)
             if 'RUNNING_MODAL' not in ret and 'FINISHED' not in ret:
@@ -543,7 +549,13 @@ def trigger_next_render():
     
     try:
         if is_playblast:
-            ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=False)
+            area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
+            region = next((r for r in area.regions if r.type == 'WINDOW'), None) if area else None
+            if area and region:
+                with bpy.context.temp_override(area=area, region=region):
+                    ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=True)
+            else:
+                ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=False)
         else:
             ret = bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
             
