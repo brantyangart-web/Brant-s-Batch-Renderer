@@ -15,6 +15,7 @@ class BatchRenderState:
     is_running = False
     is_compositing = False
     skip_existing = False
+    engine_mode = 'RENDER'
     queue = [] # list of dicts: {'name': str, 'objects': list, 'frame_start': int, 'frame_end': int}
     current_index = 0
     current_frame = 0
@@ -112,6 +113,15 @@ class BatchRenderProperties(bpy.types.PropertyGroup):
         name="Output Directory",
         subtype='DIR_PATH',
         description="Folder where renders will be saved"
+    )
+    engine_mode: bpy.props.EnumProperty(
+        name="Engine Mode",
+        items=[
+            ('RENDER', "Standard Render", "Render using Cycles/Eevee"),
+            ('PLAYBLAST', "Playblast (Viewport)", "Ultra-fast viewport OpenGL render")
+        ],
+        default='RENDER',
+        description="Choose between high quality render or fast viewport preview"
     )
     render_type: bpy.props.EnumProperty(
         name="Render Mode",
@@ -479,42 +489,64 @@ def trigger_next_render():
         except ReferenceError: pass
         
     scene = bpy.context.scene
-    scene.frame_set(frame)
-    frame_str = f"{frame:04d}"
+    is_video = scene.render.image_settings.file_format in {'FFMPEG', 'AVI_JPEG', 'AVI_RAW'}
+    is_playblast = (BatchRenderState.engine_mode == 'PLAYBLAST')
     
-    if item['is_animation']:
-        obj_base_dir = os.path.join(item.get('output_dir', BatchRenderState.output_dir), item['name'])
-        if BatchRenderState.dual_output:
-            obj_no_bg_dir = os.path.join(obj_base_dir, "no_bg")
-            obj_with_bg_dir = os.path.join(obj_base_dir, "with_bg")
-            os.makedirs(obj_no_bg_dir, exist_ok=True)
-            os.makedirs(obj_with_bg_dir, exist_ok=True)
-            no_bg_path = os.path.join(obj_no_bg_dir, f"{frame_str}.png")
-            item['with_bg_path'] = os.path.join(obj_with_bg_dir, f"{frame_str}.png")
-        else:
-            os.makedirs(obj_base_dir, exist_ok=True)
-            no_bg_path = os.path.join(obj_base_dir, f"{frame_str}.png")
-    else:
-        # Still
-        if BatchRenderState.dual_output:
-            no_bg_dir = os.path.join(item.get('output_dir', BatchRenderState.output_dir), "no_bg")
-            with_bg_dir = os.path.join(item.get('output_dir', BatchRenderState.output_dir), "with_bg")
-            os.makedirs(no_bg_dir, exist_ok=True)
-            os.makedirs(with_bg_dir, exist_ok=True)
-            no_bg_path = os.path.join(no_bg_dir, f"{item['name']}_{frame_str}.png")
-            item['with_bg_path'] = os.path.join(with_bg_dir, f"{item['name']}_{frame_str}.png")
-        else:
-            out_dir = item.get('output_dir', BatchRenderState.output_dir)
-            os.makedirs(out_dir, exist_ok=True)
-            no_bg_path = os.path.join(out_dir, f"{item['name']}_{frame_str}.png")
+    # If the user selected Playblast or Video, Dual Output compositor is not supported
+    if is_playblast or is_video:
+        BatchRenderState.dual_output = False
+        
+    if item['is_animation'] and is_video:
+        # For video formats, we must render the entire frame range in one operator call
+        out_dir = item.get('output_dir', BatchRenderState.output_dir)
+        os.makedirs(out_dir, exist_ok=True)
+        ext = ".mp4" if scene.render.image_settings.file_format == 'FFMPEG' else ".avi"
+        no_bg_path = os.path.join(out_dir, item['name'] + "_")
+        item['no_bg_path'] = no_bg_path
+        
+        scene.frame_start = item['frame_start']
+        scene.frame_end = item['frame_end']
+        scene.render.filepath = no_bg_path
+        
+        if BatchRenderState.skip_existing:
+            # Check if any video with this prefix already exists
+            existing = [f for f in os.listdir(out_dir) if f.startswith(item['name'] + "_") and f.endswith(ext)]
+            if existing:
+                print(f"Skipping existing video: {item['name']}")
+                BatchRenderState.current_frame = item['frame_end'] + 1
+                return 0.1
+                
+        print(f"Batch Render Video: {item['name']}")
+        BatchRenderState.current_frame = item['frame_end'] + 1 # Fast forward state
+        
+        try:
+            if is_playblast:
+                ret = bpy.ops.render.opengl('INVOKE_DEFAULT', animation=True, view_context=False)
+            else:
+                ret = bpy.ops.render.render('INVOKE_DEFAULT', animation=True)
+            if 'RUNNING_MODAL' not in ret and 'FINISHED' not in ret:
+                BatchRenderState.current_frame = item['frame_start']
+                print(f"Render engine locked {ret}. Retrying in 2 seconds...")
+                return 2.0
+        except Exception as e:
+            BatchRenderState.current_frame = item['frame_start']
+            print(f"Render error: {e}. Retrying in 2 seconds...")
+            return 2.0
             
-    item['no_bg_path'] = no_bg_path
+        return None
+
+    # Handle image sequence renders (Frame by Frame)
+    scene.frame_set(frame)
     scene.render.filepath = no_bg_path
     
     print(f"Batch Render: {item['name']} - Frame {frame}")
     
     try:
-        ret = bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
+        if is_playblast:
+            ret = bpy.ops.render.opengl('INVOKE_DEFAULT', write_still=True, view_context=False)
+        else:
+            ret = bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
+            
         if 'RUNNING_MODAL' not in ret and 'FINISHED' not in ret:
             print(f"Render engine locked or rejected the render {ret}. Retrying in 2 seconds...")
             return 2.0 # Wait 2 seconds and let the timer retry this exact same frame
@@ -701,6 +733,7 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
             
         # Store State
         BatchRenderState.is_running = True
+        BatchRenderState.engine_mode = props.engine_mode
         BatchRenderState.output_dir = output_dir
         BatchRenderState.dual_output = props.dual_output
         BatchRenderState.skip_existing = props.skip_existing
@@ -810,14 +843,16 @@ class BATCHRENDER_PT_panel(bpy.types.Panel):
         layout.separator()
         col = layout.column()
         col.label(text="Settings:")
+        col.prop(props, "engine_mode")
         col.prop(props, "render_type")
         col.prop(props, "skip_existing")
 
-        layout.separator()
-        box = layout.box()
-        box.prop(props, "dual_output")
-        if props.dual_output:
-            box.prop(props, "bg_image_path", icon='IMAGE_DATA')
+        if props.engine_mode != 'PLAYBLAST':
+            layout.separator()
+            box = layout.box()
+            box.prop(props, "dual_output")
+            if props.dual_output:
+                box.prop(props, "bg_image_path", icon='IMAGE_DATA')
             box.label(text="Outputs: with_bg/ and no_bg/ sub-folders", icon='INFO')
 
         layout.separator()
