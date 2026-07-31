@@ -320,10 +320,12 @@ def restore_environment():
             col.hide_viewport = vis['hide_viewport']
         except ReferenceError: pass
         
-    for lc, exclude_state in BatchRenderState.original_layer_exclude.items():
-        try:
-            lc.exclude = exclude_state
-        except ReferenceError: pass
+    def restore_layer_exclude(lc):
+        if lc.name in BatchRenderState.original_layer_exclude:
+            lc.exclude = BatchRenderState.original_layer_exclude[lc.name]
+        for child in lc.children:
+            restore_layer_exclude(child)
+    restore_layer_exclude(bpy.context.view_layer.layer_collection)
         
     scene = bpy.context.scene
     for k, v in BatchRenderState.original_settings.items():
@@ -531,12 +533,13 @@ def trigger_next_render():
             for col in obj.users_collection:
                 col.hide_render = False
                 col.hide_viewport = False
-                # Un-exclude all parent layer collections recursively
-                lc_path = get_layer_collection_path(bpy.context.view_layer.layer_collection, col, [])
-                if lc_path:
-                    for lc in lc_path:
-                        lc.exclude = False
         except ReferenceError: pass
+        
+    col = item.get('collection')
+    if col:
+        lc_path = get_layer_collection_path(bpy.context.view_layer.layer_collection, col, [])
+        if lc_path:
+            lc_path[-1].exclude = False
         
     scene = bpy.context.scene
     is_video = scene.render.image_settings.file_format in {'FFMPEG', 'AVI_JPEG', 'AVI_RAW'}
@@ -828,7 +831,7 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
         BatchRenderState.original_layer_exclude.clear()
         
         def record_layer_exclude(lc):
-            BatchRenderState.original_layer_exclude[lc] = lc.exclude
+            BatchRenderState.original_layer_exclude[lc.name] = lc.exclude
             for child in lc.children:
                 record_layer_exclude(child)
         record_layer_exclude(context.view_layer.layer_collection)
