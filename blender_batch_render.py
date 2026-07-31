@@ -32,7 +32,16 @@ class BatchRenderState:
     imported_collections = [] # Collections appended/linked that need deletion
     original_visibility = {}
     original_col_visibility = {}
+    original_layer_exclude = {}
     original_settings = {}
+    
+def get_layer_collection_path(layer_col, target_col, path):
+    if layer_col.collection == target_col:
+        return path + [layer_col]
+    for child in layer_col.children:
+        res = get_layer_collection_path(child, target_col, path + [layer_col])
+        if res: return res
+    return None
 
 # ---------------------------------------------------------------------------
 # Dynamic External Collection Fetcher (With Caching to prevent UI lag)
@@ -311,6 +320,11 @@ def restore_environment():
             col.hide_viewport = vis['hide_viewport']
         except ReferenceError: pass
         
+    for lc, exclude_state in BatchRenderState.original_layer_exclude.items():
+        try:
+            lc.exclude = exclude_state
+        except ReferenceError: pass
+        
     scene = bpy.context.scene
     for k, v in BatchRenderState.original_settings.items():
         try:
@@ -501,13 +515,18 @@ def trigger_next_render():
             col.hide_viewport = True
         except ReferenceError: pass
         
-    for obj in item['objects']:
+    for obj in item.get('objects', []):
         try:
             obj.hide_render = False
             obj.hide_viewport = False
             for col in obj.users_collection:
                 col.hide_render = False
                 col.hide_viewport = False
+                # Un-exclude all parent layer collections recursively
+                lc_path = get_layer_collection_path(bpy.context.view_layer.layer_collection, col, [])
+                if lc_path:
+                    for lc in lc_path:
+                        lc.exclude = False
         except ReferenceError: pass
         
     scene = bpy.context.scene
@@ -797,6 +816,14 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
         # Setup hide state ONLY for objects and collections in the queue
         BatchRenderState.original_visibility.clear()
         BatchRenderState.original_col_visibility.clear()
+        BatchRenderState.original_layer_exclude.clear()
+        
+        def record_layer_exclude(lc):
+            BatchRenderState.original_layer_exclude[lc] = lc.exclude
+            for child in lc.children:
+                record_layer_exclude(child)
+        record_layer_exclude(context.view_layer.layer_collection)
+        
         for item in queue:
             for obj in item['objects']:
                 if obj not in BatchRenderState.original_visibility:
