@@ -31,6 +31,7 @@ class BatchRenderState:
     # Cleanup
     imported_collections = [] # Collections appended/linked that need deletion
     original_visibility = {}
+    original_col_visibility = {}
     original_settings = {}
 
 # ---------------------------------------------------------------------------
@@ -304,6 +305,12 @@ def restore_environment():
             obj.hide_viewport = vis['hide_viewport']
         except ReferenceError: pass
         
+    for col, vis in BatchRenderState.original_col_visibility.items():
+        try:
+            col.hide_render = vis['hide_render']
+            col.hide_viewport = vis['hide_viewport']
+        except ReferenceError: pass
+        
     scene = bpy.context.scene
     for k, v in BatchRenderState.original_settings.items():
         try:
@@ -471,6 +478,12 @@ def trigger_next_render():
                         'hide_render': obj.hide_render,
                         'hide_viewport': obj.hide_viewport
                     }
+                for col in obj.users_collection:
+                    if col not in BatchRenderState.original_col_visibility:
+                        BatchRenderState.original_col_visibility[col] = {
+                            'hide_render': col.hide_render,
+                            'hide_viewport': col.hide_viewport
+                        }
         except Exception as e:
             print(f"Failed to load deferred item {item['name']}: {e}")
             item['objects'] = []
@@ -482,10 +495,19 @@ def trigger_next_render():
             obj.hide_viewport = True
         except ReferenceError: pass
         
+    for col, vis in BatchRenderState.original_col_visibility.items():
+        try:
+            col.hide_render = True
+            col.hide_viewport = True
+        except ReferenceError: pass
+        
     for obj in item['objects']:
         try:
             obj.hide_render = False
             obj.hide_viewport = False
+            for col in obj.users_collection:
+                col.hide_render = False
+                col.hide_viewport = False
         except ReferenceError: pass
         
     scene = bpy.context.scene
@@ -772,8 +794,9 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
             'color_mode': context.scene.render.image_settings.color_mode
         }
         
-        # Setup hide state ONLY for objects in the queue
+        # Setup hide state ONLY for objects and collections in the queue
         BatchRenderState.original_visibility.clear()
+        BatchRenderState.original_col_visibility.clear()
         for item in queue:
             for obj in item['objects']:
                 if obj not in BatchRenderState.original_visibility:
@@ -781,6 +804,12 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
                         'hide_render': obj.hide_render,
                         'hide_viewport': obj.hide_viewport
                     }
+                for col in obj.users_collection:
+                    if col not in BatchRenderState.original_col_visibility:
+                        BatchRenderState.original_col_visibility[col] = {
+                            'hide_render': col.hide_render,
+                            'hide_viewport': col.hide_viewport
+                        }
                     
         # Apply strict render settings for Dual Output
         if props.dual_output:
