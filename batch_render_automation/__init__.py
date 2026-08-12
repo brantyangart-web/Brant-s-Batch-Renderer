@@ -5,7 +5,16 @@ bl_info = {
 }
 
 import bpy
-from . import properties, ui, ops_render, ops_versioning, ops_merge
+
+if "bpy" in locals() and "properties" in locals():
+    import importlib
+    importlib.reload(properties)
+    importlib.reload(ui)
+    importlib.reload(ops_render)
+    importlib.reload(ops_versioning)
+    importlib.reload(ops_merge)
+else:
+    from . import properties, ui, ops_render, ops_versioning, ops_merge
 
 modules = [properties, ui, ops_render, ops_versioning, ops_merge]
 
