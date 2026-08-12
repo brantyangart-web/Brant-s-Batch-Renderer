@@ -8,74 +8,27 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
     bl_label = "Batch Merge & Save Versions"
     bl_description = "Iterate through all versions, merge them, and output to a folder or collection"
     bl_options = {'REGISTER', 'UNDO'}
-    
-    output_mode: bpy.props.EnumProperty(
-        name="Output Mode",
-        items=[
-            ('COLLECTION', "To Collection", "Place all merged models into a specific collection"),
-            ('FOLDER_OBJ', "Export to Folder (OBJ)", "Export all merged models to a folder as .obj"),
-            ('FOLDER_FBX', "Export to Folder (FBX)", "Export all merged models to a folder as .fbx"),
-        ],
-        default='COLLECTION'
-    )
-    
-    target_collection: bpy.props.PointerProperty(
-        name="Target Collection",
-        type=bpy.types.Collection
-    )
-    
-    export_dir: bpy.props.StringProperty(
-        name="Export Directory",
-        subtype='DIR_PATH'
-    )
-    
-    voxel_size: bpy.props.FloatProperty(
-        name="Voxel Size",
-        default=0.03,
-        min=0.001,
-        precision=3
-    )
-    
-    smooth_iters: bpy.props.IntProperty(
-        name="Smooth Iterations",
-        default=10,
-        min=0
-    )
 
     @classmethod
     def poll(cls, context):
         return context.scene.batch_versions and len(context.scene.batch_versions) > 0
 
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "output_mode")
-        if self.output_mode == 'COLLECTION':
-            layout.prop(self, "target_collection")
-        else:
-            layout.prop(self, "export_dir")
-            
-        layout.separator()
-        layout.prop(self, "voxel_size")
-        layout.prop(self, "smooth_iters")
-
     def execute(self, context):
         scene = context.scene
+        props = scene.batch_render_props
         
-        if self.output_mode != 'COLLECTION' and not self.export_dir:
+        if props.merge_output_mode != 'COLLECTION' and not props.merge_export_dir:
             self.report({'ERROR'}, "Please specify an export directory.")
             return {'CANCELLED'}
             
-        if self.output_mode == 'COLLECTION' and not self.target_collection:
+        if props.merge_output_mode == 'COLLECTION' and not props.merge_target_collection:
             self.report({'ERROR'}, "Please specify a target collection.")
             return {'CANCELLED'}
 
         temp_dir = tempfile.gettempdir()
         temp_obj_path = os.path.join(temp_dir, "batchrender_temp_merge.obj")
         
-        export_dir_abs = bpy.path.abspath(self.export_dir) if self.export_dir else ""
+        export_dir_abs = bpy.path.abspath(props.merge_export_dir) if props.merge_export_dir else ""
         
         # Save current active version to restore later
         original_active_idx = scene.active_batch_version_index
@@ -144,11 +97,11 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
             # 5. Apply Remesh and Smooth
             remesh_mod = merged_obj.modifiers.new(name="Remesh", type='REMESH')
             remesh_mod.mode = 'VOXEL'
-            remesh_mod.voxel_size = self.voxel_size
+            remesh_mod.voxel_size = props.merge_voxel_size
             
-            if self.smooth_iters > 0:
+            if props.merge_smooth_iters > 0:
                 smooth_mod = merged_obj.modifiers.new(name="Smooth", type='SMOOTH')
-                smooth_mod.iterations = self.smooth_iters
+                smooth_mod.iterations = props.merge_smooth_iters
                 
             # Restore materials
             if hasattr(merged_obj.data, "materials"):
@@ -158,26 +111,26 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
                     
             # 6. Apply all modifiers (Realize the remesh)
             # Since we might export it immediately, it's safer to apply them.
-            if self.output_mode != 'COLLECTION':
+            if props.merge_output_mode != 'COLLECTION':
                 bpy.ops.object.convert(target='MESH')
             
             # 7. Output Routing
-            if self.output_mode == 'COLLECTION':
+            if props.merge_output_mode == 'COLLECTION':
                 # Link to target collection
                 for col in merged_obj.users_collection:
                     col.objects.unlink(merged_obj)
-                self.target_collection.objects.link(merged_obj)
+                props.merge_target_collection.objects.link(merged_obj)
             else:
                 # Export to folder
                 safe_name = "".join([c for c in version.name if c.isalpha() or c.isdigit() or c==' ']).rstrip()
                 
-                if self.output_mode == 'FOLDER_OBJ':
+                if props.merge_output_mode == 'FOLDER_OBJ':
                     out_path = os.path.join(export_dir_abs, f"{safe_name}.obj")
                     if hasattr(bpy.ops.wm, "obj_export"):
                         bpy.ops.wm.obj_export(filepath=out_path, export_selected_objects=True)
                     else:
                         bpy.ops.export_scene.obj(filepath=out_path, use_selection=True)
-                elif self.output_mode == 'FOLDER_FBX':
+                elif props.merge_output_mode == 'FOLDER_FBX':
                     out_path = os.path.join(export_dir_abs, f"{safe_name}.fbx")
                     bpy.ops.export_scene.fbx(filepath=out_path, use_selection=True)
                 

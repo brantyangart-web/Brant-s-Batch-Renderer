@@ -132,7 +132,20 @@ class BATCHRENDER_PT_versions(bpy.types.Panel):
             
         layout.separator()
         layout.label(text="Batch Operations:", icon='MODIFIER')
-        layout.operator("batchrender.batch_merge_versions", text="Batch Merge Versions", icon='MOD_REMESH')
+        
+        box = layout.box()
+        box.prop(scene.batch_render_props, "merge_output_mode")
+        if scene.batch_render_props.merge_output_mode == 'COLLECTION':
+            box.prop(scene.batch_render_props, "merge_target_collection")
+        else:
+            box.prop(scene.batch_render_props, "merge_export_dir")
+            
+        box.separator()
+        box.prop(scene.batch_render_props, "merge_voxel_size")
+        box.prop(scene.batch_render_props, "merge_smooth_iters")
+        
+        box.separator()
+        box.operator("batchrender.batch_merge_versions", text="Batch Merge Versions", icon='MOD_REMESH')
 
 classes = (
     BATCHRENDER_UL_targets,

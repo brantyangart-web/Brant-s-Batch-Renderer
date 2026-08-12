@@ -131,6 +131,39 @@ class BatchRenderProperties(bpy.types.PropertyGroup):
         subtype='FILE_PATH',
         description="The background image to composite the models over"
     )
+    
+    merge_output_mode: bpy.props.EnumProperty(
+        name="Output Mode",
+        items=[
+            ('COLLECTION', "To Collection", "Place all merged models into a specific collection"),
+            ('FOLDER_OBJ', "Export to Folder (OBJ)", "Export all merged models to a folder as .obj"),
+            ('FOLDER_FBX', "Export to Folder (FBX)", "Export all merged models to a folder as .fbx"),
+        ],
+        default='COLLECTION'
+    )
+    
+    merge_target_collection: bpy.props.PointerProperty(
+        name="Target Collection",
+        type=bpy.types.Collection
+    )
+    
+    merge_export_dir: bpy.props.StringProperty(
+        name="Export Directory",
+        subtype='DIR_PATH'
+    )
+    
+    merge_voxel_size: bpy.props.FloatProperty(
+        name="Voxel Size",
+        default=0.03,
+        min=0.001,
+        precision=3
+    )
+    
+    merge_smooth_iters: bpy.props.IntProperty(
+        name="Smooth Iterations",
+        default=10,
+        min=0
+    )
 
     targets: bpy.props.CollectionProperty(type=BatchRenderTarget)
     active_target_index: bpy.props.IntProperty()
