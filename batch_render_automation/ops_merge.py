@@ -45,8 +45,9 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
                 if item.collection:
                     for obj in item.collection.all_objects:
                         if obj.type == 'MESH' and not obj.hide_get() and not obj.hide_render:
-                            obj.select_set(True)
-                            valid_objects.append(obj)
+                            if obj.name in context.view_layer.objects:
+                                obj.select_set(True)
+                                valid_objects.append(obj)
                             
             if not valid_objects:
                 self.report({'WARNING'}, f"Version '{version.name}' has no visible meshes. Skipping.")
