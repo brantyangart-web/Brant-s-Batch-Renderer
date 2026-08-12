@@ -164,6 +164,27 @@ class BatchRenderProperties(bpy.types.PropertyGroup):
         default=10,
         min=0
     )
+    
+    merge_apply_modifiers: bpy.props.BoolProperty(
+        name="Apply Modifiers",
+        description="Apply Remesh, Smooth, and Decimate to the mesh to save performance",
+        default=True
+    )
+    
+    merge_use_decimate: bpy.props.BoolProperty(
+        name="Use Decimation",
+        description="Add a Decimate modifier to reduce poly count after remeshing",
+        default=False
+    )
+    
+    merge_decimate_ratio: bpy.props.FloatProperty(
+        name="Decimate Ratio",
+        description="Ratio of faces to keep (e.g., 0.5 = 50%)",
+        default=0.5,
+        min=0.001,
+        max=1.0,
+        precision=3
+    )
 
     targets: bpy.props.CollectionProperty(type=BatchRenderTarget)
     active_target_index: bpy.props.IntProperty()

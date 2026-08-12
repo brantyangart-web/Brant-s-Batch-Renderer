@@ -106,15 +106,18 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
                 smooth_mod = merged_obj.modifiers.new(name="Smooth", type='SMOOTH')
                 smooth_mod.iterations = props.merge_smooth_iters
                 
+            if props.merge_use_decimate:
+                decimate_mod = merged_obj.modifiers.new(name="Decimate", type='DECIMATE')
+                decimate_mod.ratio = props.merge_decimate_ratio
+                
             # Restore materials
             if hasattr(merged_obj.data, "materials"):
                 merged_obj.data.materials.clear()
                 for mat in original_materials:
                     if mat: merged_obj.data.materials.append(mat)
                     
-            # 6. Apply all modifiers (Realize the remesh)
-            # Since we might export it immediately, it's safer to apply them.
-            if props.merge_output_mode != 'COLLECTION':
+            # 6. Apply all modifiers
+            if props.merge_output_mode != 'COLLECTION' or props.merge_apply_modifiers:
                 bpy.ops.object.convert(target='MESH')
             
             # 7. Output Routing

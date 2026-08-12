@@ -21,6 +21,25 @@ class BATCHRENDER_OT_remove_version(bpy.types.Operator):
             context.scene.active_batch_version_index = max(0, idx - 1)
         return {'FINISHED'}
 
+class BATCHRENDER_OT_duplicate_version(bpy.types.Operator):
+    bl_idname = "batchrender.duplicate_version"
+    bl_label = "Duplicate Version"
+    
+    def execute(self, context):
+        idx = context.scene.active_batch_version_index
+        if idx >= 0 and idx < len(context.scene.batch_versions):
+            old_version = context.scene.batch_versions[idx]
+            
+            new_version = context.scene.batch_versions.add()
+            new_version.name = old_version.name + " Copy"
+            
+            for item in old_version.collections:
+                new_item = new_version.collections.add()
+                new_item.collection = item.collection
+                
+            context.scene.active_batch_version_index = len(context.scene.batch_versions) - 1
+        return {'FINISHED'}
+
 class BATCHRENDER_OT_add_version_collection(bpy.types.Operator):
     bl_idname = "batchrender.add_version_collection"
     bl_label = "Add Selected Collection"
@@ -101,6 +120,7 @@ class BATCHRENDER_OT_activate_version(bpy.types.Operator):
 classes = (
     BATCHRENDER_OT_add_version,
     BATCHRENDER_OT_remove_version,
+    BATCHRENDER_OT_duplicate_version,
     BATCHRENDER_OT_add_version_collection,
     BATCHRENDER_OT_remove_version_collection,
     BATCHRENDER_OT_activate_version

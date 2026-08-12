@@ -117,6 +117,7 @@ class BATCHRENDER_PT_versions(bpy.types.Panel):
         col = row.column(align=True)
         col.operator("batchrender.add_version", text="", icon='ADD')
         col.operator("batchrender.remove_version", text="", icon='REMOVE')
+        col.operator("batchrender.duplicate_version", text="", icon='COPYDOWN')
 
         if scene.active_batch_version_index >= 0 and scene.active_batch_version_index < len(scene.batch_versions):
             active_version = scene.batch_versions[scene.active_batch_version_index]
@@ -143,6 +144,12 @@ class BATCHRENDER_PT_versions(bpy.types.Panel):
         box.separator()
         box.prop(scene.batch_render_props, "merge_voxel_size")
         box.prop(scene.batch_render_props, "merge_smooth_iters")
+        
+        box.separator()
+        box.prop(scene.batch_render_props, "merge_apply_modifiers")
+        box.prop(scene.batch_render_props, "merge_use_decimate")
+        if scene.batch_render_props.merge_use_decimate:
+            box.prop(scene.batch_render_props, "merge_decimate_ratio")
         
         box.separator()
         box.operator("batchrender.batch_merge_versions", text="Batch Merge Versions", icon='MOD_REMESH')
