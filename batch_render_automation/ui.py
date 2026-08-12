@@ -36,11 +36,11 @@ class BATCHRENDER_UL_version_collections(bpy.types.UIList):
             layout.label(text="", icon='OUTLINER_COLLECTION')
 
 class BATCHRENDER_PT_panel(bpy.types.Panel):
-    bl_label = "Batch Operations Hub"
+    bl_label = "Batch Render Automator"
     bl_idname = "BATCHRENDER_PT_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Batch Automation'
+    bl_category = 'Batch Operations Hub'
 
     def draw(self, context):
         layout = self.layout
@@ -48,7 +48,7 @@ class BATCHRENDER_PT_panel(bpy.types.Panel):
         
         # --- Batch Render Automation ---
         box = layout.box()
-        box.label(text="Batch Render Automator", icon='RENDER_ANIMATION')
+        box.label(text="Render Settings:", icon='RENDER_ANIMATION')
         
         box.prop(props, "output_dir")
         box.prop(props, "engine_mode")
@@ -103,7 +103,7 @@ class BATCHRENDER_PT_versions(bpy.types.Panel):
     bl_idname = "BATCHRENDER_PT_versions"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Batch Automation'
+    bl_category = 'Batch Operations Hub'
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
