@@ -30,7 +30,7 @@ class BATCHRENDER_UL_version_collections(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
-            row.prop(item, "collection", text="", emboss=False, icon='OUTLINER_COLLECTION')
+            row.prop(item, "collection", text="")
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon='OUTLINER_COLLECTION')
