@@ -1,40 +1,14 @@
+from .properties import BatchRenderState
 import bpy
 import os
 import time
 
-bl_info = {
-    "name": "Batch Render Automation",
-    "blender": (3, 0, 0),
-    "category": "Render",
-}
+
 
 # ---------------------------------------------------------------------------
 # Global State for Event-Driven Rendering
 # ---------------------------------------------------------------------------
-class BatchRenderState:
-    is_running = False
-    is_compositing = False
-    skip_existing = False
-    engine_mode = 'RENDER'
-    queue = [] # list of dicts: {'name': str, 'objects': list, 'frame_start': int, 'frame_end': int}
-    current_index = 0
-    current_frame = 0
-    
-    # Settings
-    output_dir = ""
-    dual_output = False
-    bg_path = ""
-    res_x = 1920
-    res_y = 1080
-    res_pct = 100
-    
-    # Cleanup
-    imported_collections = [] # Collections appended/linked that need deletion
-    original_visibility = {}
-    original_col_visibility = {}
-    original_layer_exclude = {}
-    original_settings = {}
-    
+
 def get_layer_collection_path(layer_col, target_col, path):
     if layer_col.collection == target_col:
         return path + [layer_col]
@@ -78,97 +52,8 @@ def get_external_collections(self, context):
 # ---------------------------------------------------------------------------
 # Properties
 # ---------------------------------------------------------------------------
-class BatchRenderTarget(bpy.types.PropertyGroup):
-    source_type: bpy.props.EnumProperty(
-        name="Source",
-        items=[
-            ('INTERNAL', "Current File", "Select a collection from the current file"),
-            ('EXTERNAL', "External File", "Link or Append a collection from another file"),
-        ]
-    )
-    internal_collection: bpy.props.PointerProperty(
-        name="Collection",
-        type=bpy.types.Collection
-    )
-    external_file: bpy.props.StringProperty(
-        name="File",
-        subtype='FILE_PATH'
-    )
-    external_collection_name: bpy.props.EnumProperty(
-        name="Collection",
-        items=get_external_collections
-    )
-    external_import_type: bpy.props.EnumProperty(
-        name="Import",
-        items=[
-            ('APPEND', "Append", "Copy data into current file"),
-            ('LINK', "Link", "Reference data from external file"),
-        ]
-    )
-    use_custom_dir: bpy.props.BoolProperty(
-        name="Custom Output Dir",
-        default=False,
-        description="Override the global output directory for this specific target"
-    )
-    custom_dir: bpy.props.StringProperty(
-        name="Directory",
-        subtype='DIR_PATH'
-    )
 
-class BatchRenderProperties(bpy.types.PropertyGroup):
-    targets: bpy.props.CollectionProperty(type=BatchRenderTarget)
-    active_target_index: bpy.props.IntProperty()
-    
-    output_dir: bpy.props.StringProperty(
-        name="Output Directory",
-        subtype='DIR_PATH',
-        description="Folder where renders will be saved"
-    )
-    engine_mode: bpy.props.EnumProperty(
-        name="Engine Mode",
-        items=[
-            ('RENDER', "Standard Render", "Render using Cycles/Eevee"),
-            ('PLAYBLAST', "Playblast (Viewport)", "Ultra-fast viewport OpenGL render")
-        ],
-        default='RENDER',
-        description="Choose between high quality render or fast viewport preview"
-    )
-    render_type: bpy.props.EnumProperty(
-        name="Render Mode",
-        items=[
-            ('STILL', "Current Frame", "Render only the current frame"),
-            ('ANIMATION', "Animation", "Render the active timeline range")
-        ]
-    )
-    dual_output: bpy.props.BoolProperty(
-        name="Auto-Composite Background",
-        default=False,
-        description="Run a 2-pass render to output both transparent and background-mixed PNGs"
-    )
-    skip_existing: bpy.props.BoolProperty(
-        name="Skip Existing Frames (Resume)",
-        default=False,
-        description="If a file already exists at the output path, skip rendering it and move to the next frame"
-    )
-    bg_image_path: bpy.props.StringProperty(
-        name="Background Image",
-        subtype='FILE_PATH'
-    )
 
-# ---------------------------------------------------------------------------
-# UI List Operations
-# ---------------------------------------------------------------------------
-class BATCHRENDER_UL_targets(bpy.types.UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            if item.source_type == 'INTERNAL':
-                if item.internal_collection:
-                    layout.label(text=item.internal_collection.name, icon='OUTLINER_COLLECTION')
-                else:
-                    layout.label(text="(No Collection Selected)", icon='ERROR')
-            else:
-                name = item.external_collection_name if item.external_collection_name != "NONE" else "(Select Collection)"
-                layout.label(text=f"Ext: {name}", icon='LINKED')
 
 class BATCHRENDER_OT_add_target(bpy.types.Operator):
     bl_idname = "batchrender.add_target"
@@ -897,93 +782,19 @@ class BATCHRENDER_OT_clear(bpy.types.Operator):
 # ---------------------------------------------------------------------------
 # Panel
 # ---------------------------------------------------------------------------
-class BATCHRENDER_PT_panel(bpy.types.Panel):
-    bl_label = "Batch Render Automation"
-    bl_idname = "BATCHRENDER_PT_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'Batch Render'
 
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.batch_render_props
 
-        layout.label(text="Render Targets:")
-        row = layout.row()
-        row.template_list("BATCHRENDER_UL_targets", "", props, "targets", props, "active_target_index", rows=3)
-        col = row.column(align=True)
-        col.operator("batchrender.add_target", text="", icon='ADD')
-        col.operator("batchrender.remove_target", text="", icon='REMOVE')
-        
-        if len(props.targets) > 0 and props.active_target_index < len(props.targets):
-            target = props.targets[props.active_target_index]
-            box = layout.box()
-            box.prop(target, "source_type")
-            if target.source_type == 'INTERNAL':
-                box.prop(target, "internal_collection")
-            else:
-                box.prop(target, "external_file")
-                box.prop(target, "external_collection_name")
-                box.prop(target, "external_import_type")
-                
-            box.prop(target, "use_custom_dir")
-            if target.use_custom_dir:
-                box.prop(target, "custom_dir")
-
-        layout.separator()
-        layout.prop(props, "output_dir")
-
-        layout.separator()
-        col = layout.column()
-        col.label(text="Settings:")
-        col.prop(props, "engine_mode")
-        col.prop(props, "render_type")
-        col.prop(props, "skip_existing")
-
-        if props.engine_mode != 'PLAYBLAST':
-            layout.separator()
-            box = layout.box()
-            box.prop(props, "dual_output")
-            if props.dual_output:
-                box.prop(props, "bg_image_path", icon='IMAGE_DATA')
-            box.label(text="Outputs: with_bg/ and no_bg/ sub-folders", icon='INFO')
-
-        layout.separator()
-        row = layout.row()
-        row.scale_y = 1.5
-        row.operator(
-            "render.batch_run",
-            icon='RENDER_STILL' if props.render_type == 'STILL' else 'RENDER_ANIMATION',
-        )
-        
-        if BatchRenderState.is_running:
-            layout.separator()
-            row = layout.row()
-            row.operator("render.batch_clear", icon='CANCEL')
-
-# ---------------------------------------------------------------------------
-# Registration
-# ---------------------------------------------------------------------------
 classes = (
-    BatchRenderTarget,
-    BatchRenderProperties,
-    BATCHRENDER_UL_targets,
     BATCHRENDER_OT_add_target,
     BATCHRENDER_OT_remove_target,
     BATCHRENDER_OT_run,
     BATCHRENDER_OT_clear,
-    BATCHRENDER_PT_panel,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.batch_render_props = bpy.props.PointerProperty(type=BatchRenderProperties)
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.batch_render_props
-
-if __name__ == "__main__":
-    register()
