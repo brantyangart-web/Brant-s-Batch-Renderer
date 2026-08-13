@@ -93,10 +93,10 @@ class BATCHRENDER_PT_panel(bpy.types.Panel):
         box.separator()
         
         if BatchRenderState.is_running:
-            box.operator("batchrender.cancel", text="Cancel Batch Render", icon='CANCEL')
+            box.operator("render.batch_clear", text="Cancel Batch Render", icon='CANCEL')
             box.label(text=f"Rendering Queue... Item {BatchRenderState.current_index + 1} / {len(BatchRenderState.queue)}", icon='INFO')
         else:
-            box.operator("batchrender.run", text="START BATCH RENDER", icon='PLAY')
+            box.operator("render.batch_run", text="START BATCH RENDER", icon='PLAY')
 
 class BATCHRENDER_PT_versions(bpy.types.Panel):
     bl_label = "Batch Version Manager"
