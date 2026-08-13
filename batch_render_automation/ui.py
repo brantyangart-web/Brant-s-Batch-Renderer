@@ -19,6 +19,7 @@ class BATCHRENDER_UL_versions(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
+            row.prop(item, "use_for_merge", text="", icon='CHECKBOX_HLT' if item.use_for_merge else 'CHECKBOX_DEHLT', emboss=False)
             row.prop(item, "name", text="", emboss=False, icon='OUTLINER_OB_GROUP_INSTANCE')
             op = row.operator("batchrender.activate_version", text="", icon='RESTRICT_VIEW_OFF')
             op.version_index = index
@@ -118,6 +119,10 @@ class BATCHRENDER_PT_versions(bpy.types.Panel):
         col.operator("batchrender.add_version", text="", icon='ADD')
         col.operator("batchrender.remove_version", text="", icon='REMOVE')
         col.operator("batchrender.duplicate_version", text="", icon='COPYDOWN')
+        
+        row2 = layout.row(align=True)
+        row2.operator("batchrender.versions_select_all", text="Select All")
+        row2.operator("batchrender.versions_deselect_all", text="Deselect All")
 
         if scene.active_batch_version_index >= 0 and scene.active_batch_version_index < len(scene.batch_versions):
             active_version = scene.batch_versions[scene.active_batch_version_index]

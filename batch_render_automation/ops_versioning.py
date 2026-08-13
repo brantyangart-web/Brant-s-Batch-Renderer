@@ -40,6 +40,24 @@ class BATCHRENDER_OT_duplicate_version(bpy.types.Operator):
             context.scene.active_batch_version_index = len(context.scene.batch_versions) - 1
         return {'FINISHED'}
 
+class BATCHRENDER_OT_versions_select_all(bpy.types.Operator):
+    bl_idname = "batchrender.versions_select_all"
+    bl_label = "Select All for Merge"
+    
+    def execute(self, context):
+        for version in context.scene.batch_versions:
+            version.use_for_merge = True
+        return {'FINISHED'}
+
+class BATCHRENDER_OT_versions_deselect_all(bpy.types.Operator):
+    bl_idname = "batchrender.versions_deselect_all"
+    bl_label = "Deselect All for Merge"
+    
+    def execute(self, context):
+        for version in context.scene.batch_versions:
+            version.use_for_merge = False
+        return {'FINISHED'}
+
 class BATCHRENDER_OT_add_version_collection(bpy.types.Operator):
     bl_idname = "batchrender.add_version_collection"
     bl_label = "Add Selected Collection"
@@ -121,6 +139,8 @@ classes = (
     BATCHRENDER_OT_add_version,
     BATCHRENDER_OT_remove_version,
     BATCHRENDER_OT_duplicate_version,
+    BATCHRENDER_OT_versions_select_all,
+    BATCHRENDER_OT_versions_deselect_all,
     BATCHRENDER_OT_add_version_collection,
     BATCHRENDER_OT_remove_version_collection,
     BATCHRENDER_OT_activate_version

@@ -85,6 +85,11 @@ class BatchVersionItem(bpy.types.PropertyGroup):
         name="Version Name",
         default="New Version"
     )
+    use_for_merge: bpy.props.BoolProperty(
+        name="Use for Merge",
+        description="Include this version when running Batch Merge",
+        default=True
+    )
     collections: bpy.props.CollectionProperty(type=BatchVersionCollectionItem)
     active_collection_index: bpy.props.IntProperty()
 
