@@ -34,6 +34,9 @@ class BATCHRENDER_OT_batch_merge_versions(bpy.types.Operator):
         original_active_idx = scene.active_batch_version_index
 
         for i, version in enumerate(scene.batch_versions):
+            if not version.use_for_merge:
+                continue
+                
             # 1. Isolate the version
             bpy.ops.batchrender.activate_version(version_index=i)
             
