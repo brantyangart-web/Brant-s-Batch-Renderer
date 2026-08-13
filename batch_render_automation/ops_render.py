@@ -623,7 +623,7 @@ class BATCHRENDER_OT_run(bpy.types.Operator):
                 self.report({'WARNING'}, f"A target has Custom Directory enabled but no path is set. Falling back to global.")
                 target_out_dir = output_dir
 
-            if target.source_type == 'INTERNAL':
+            if target.target_type == 'INTERNAL':
                 if target.internal_collection:
                     sub_items = self.get_sub_collections(target.internal_collection)
                     for i in sub_items: i['output_dir'] = target_out_dir
